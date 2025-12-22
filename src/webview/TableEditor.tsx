@@ -143,11 +143,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
             e.stopPropagation();
             const isLastCol = colIndex === data[0].length - 1;
             if (isLastCol) {
-                // Move to next row, first col
+                // 次の行の最初の列へ移動
                 if (rowIndex < data.length - 1) {
                     focusCell(rowIndex + 1, 0);
                 } else {
-                    // Last row, last col -> optional wrapping or do nothing
+                    // 最後の行の最後の列の場合は何もしない (将来的に新しい行を追加するオプションも検討可能)
                 }
             } else {
                 focusCell(rowIndex, colIndex + 1);
