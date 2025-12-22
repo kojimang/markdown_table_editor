@@ -1,0 +1,83 @@
+body {
+    padding: 10px;
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-editor-foreground);
+    background-color: var(--vscode-editor-background);
+}
+
+.table-editor-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toolbar {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+th, td {
+    border: 1px solid var(--vscode-panel-border);
+    padding: 0;
+}
+
+input {
+    width: 100%;
+    border: none;
+    padding: 8px;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+}
+
+input:focus {
+    background-color: var(--vscode-input-background);
+    outline: 1px solid var(--vscode-focusBorder);
+}
+
+.cell-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.delete-btn {
+    background: transparent;
+    color: var(--vscode-errorForeground);
+    font-weight: bold;
+    padding: 0 5px;
+    font-size: 1.2em;
+}
+
+.delete-btn:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.delete-btn.row-btn {
+    margin-right: 8px;
+    margin-left: 0;
+}
+
+.row-action-header {
+    width: 30px;
+}
+
+
