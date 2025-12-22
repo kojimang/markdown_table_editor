@@ -36,11 +36,21 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         return () => clearTimeout(timer);
     }, [data]);
 
+    /**
+     * セルの内容が変更されたときに呼び出されます。
+     * ステートを更新し、useEffect経由でVS Codeに通知されます。
+     */
+
     const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
         const newData = data.map((row) => [...row]);
         newData[rowIndex][colIndex] = value;
         setData(newData);
     };
+
+    /**
+     * セルにフォーカスが当たったときに呼び出されます。
+     * アクティブなセルを追跡します。
+     */
 
     const handleFocus = (rowIndex: number, colIndex: number) => {
         setActiveCell({ row: rowIndex, col: colIndex });
@@ -75,11 +85,21 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         setData(newData);
     };
 
+    /**
+     * 指定した行を削除します。
+     * 行が1つしかない場合は削除しません。
+     */
+
     const removeRow = (index: number) => {
         if (data.length <= 1) return;
         const newData = data.filter((_, i) => i !== index);
         setData(newData);
     };
+
+    /**
+     * 指定した列を削除します。
+     * 列が1つしかない場合は削除しません。
+     */
 
     const removeColumn = (index: number) => {
         if (data[0].length <= 1) return;
@@ -116,6 +136,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
             }
         }, 50);
     };
+
+    /**
+     * キーボードイベントを処理します。
+     * ショートカットキーによる操作およびナビゲーションを実装しています。
+     */
 
     const handleKeyDown = (e: React.KeyboardEvent, rowIndex: number, colIndex: number) => {
         // Shift + Alt + 下矢印: 行の複製

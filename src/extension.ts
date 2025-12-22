@@ -125,4 +125,8 @@ function getWebviewContent(scriptUri: vscode.Uri, initialData: string[][]) {
 </html>`;
 }
 
+/**
+ * 拡張機能が無効化されたときに呼び出されます。
+ * リソースの解放処理などが必要な場合はここに記述します。
+ */
 export function deactivate() { }
