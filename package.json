@@ -15,6 +15,9 @@
     "Other"
   ],
 
+  "activationEvents": [
+    "onCommand:markdownTableEditor.editTable"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
