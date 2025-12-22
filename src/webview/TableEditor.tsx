@@ -4,14 +4,24 @@ interface TableEditorProps {
     initialData: string[][];
 }
 
+/**
+ * テーブル編集コンポーネント (ExcelライクなUI)
+ * 
+ * 主な機能:
+ * - データの表示と編集
+ * - キーボードショートカットによる操作 (Ctrl+Enterで行追加、Shift+Alt+Downで行複製など)
+ * - VS Code拡張機能とのデータ同期
+ */
 const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
-    // Ensure we have at least one row and col
+    // データがない場合は空のテーブルで初期化
     const [data, setData] = useState<string[][]>(initialData.length > 0 ? initialData : [['', ''], ['', '']]);
 
-    // Track active cell for toolbar actions
+    // ツールバー操作のためにアクティブなセルを追跡
     const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
 
-    // Send update to VS Code whenever data changes
+    // データ変更時にVS Codeへメッセージを送信 (反映)
+    // パフォーマンスのためにデバウンス処理を入れることも検討できますが、
+    // タイピングの即時反映のために現状は300msの遅延で行っています。
     useEffect(() => {
         const timer = setTimeout(() => {
              // @ts-ignore
@@ -36,7 +46,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         setActiveCell({ row: rowIndex, col: colIndex });
     };
 
-    const addRow = (indexOffset: number = 1) => { // default insert below (offset 1)
+    /**
+     * 行を追加します。デフォルトではアクティブな行の下に追加します。
+     * @param indexOffset アクティブ行からのオフセット (1なら下、0なら上など)
+     */
+    const addRow = (indexOffset: number = 1) => { // デフォルトは下に追加 (offset 1)
         const insertIndex = activeCell ? activeCell.row + indexOffset : data.length;
         const newRow = new Array(data[0].length).fill('');
         const newData = [...data];
@@ -46,8 +60,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         setData(newData);
     };
 
-    const addColumn = (indexOffset: number = 1) => { // default insert right (offset 1)
-        // If no active cell, append to end
+    /**
+     * 列を追加します。デフォルトではアクティブな列の右に追加します。
+     */
+    const addColumn = (indexOffset: number = 1) => { // デフォルトは右に追加 (offset 1)
+        // アクティブなセルがない場合は末尾に追加
         const insertIndex = activeCell ? activeCell.col + indexOffset : data[0].length;
         const newData = data.map(row => {
              const newRow = [...row];
@@ -70,8 +87,23 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         setData(newData);
     };
 
+    /**
+     * 指定した行を複製して、その直下に挿入します。
+     */
+    const duplicateRow = (rowIndex: number) => {
+        // 現在の行データをコピー
+        const newRow = [...data[rowIndex]];
+        const newData = [...data];
+        // Insert it below the current row
+        newData.splice(rowIndex + 1, 0, newRow);
+        setData(newData);
+    };
+
+    /**
+     * 特定のセルにフォーカスを移動し、テキストを選択状態にします。
+     */
     const focusCell = (rowIndex: number, colIndex: number) => {
-        // Use requestAnimationFrame or setTimeout to allow render to complete
+        // レンダリング完了を待つためにsetTimeoutを使用
         setTimeout(() => {
             const el = document.getElementById(`cell-${rowIndex}-${colIndex}`) as HTMLInputElement;
             if (el) {
@@ -86,7 +118,16 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent, rowIndex: number, colIndex: number) => {
-        // Ctrl + Enter: Add Row Below
+        // Shift + Alt + 下矢印: 行の複製
+        if (e.shiftKey && e.altKey && e.key === 'ArrowDown') {
+            e.preventDefault();
+            e.stopPropagation();
+            duplicateRow(rowIndex);
+            focusCell(rowIndex + 1, colIndex);
+            return;
+        }
+
+        // Ctrl + Enter: 下に行を追加
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
@@ -96,7 +137,7 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
             return;
         }
 
-        // Enter: Move Right / Wrap
+        // Enter: 右隣のセルへ移動 / 行末なら次の行の先頭へラップ
         if (!e.ctrlKey && !e.metaKey && !e.shiftKey && e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();
@@ -120,13 +161,13 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                 <button 
                     onClick={() => addRow()} 
                     title="Ctrl + Enter"
-                    onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+                    onMouseDown={(e) => e.preventDefault()} // フォーカスが外れるのを防ぐ
                 >
                     行追加
                 </button>
                 <button 
                     onClick={() => addColumn()}
-                    onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+                    onMouseDown={(e) => e.preventDefault()} // フォーカスが外れるのを防ぐ
                 >
                     列追加
                 </button>
