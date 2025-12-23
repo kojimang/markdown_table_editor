@@ -95,8 +95,10 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         if (isRowIndexColumn && colIndex === 0 && rowIndex > 0) {
             return;
         }
+        // Save as <br> internally
+        const newValue = value.replace(/\n/g, '<br>');
         const newData = data.map((row) => [...row]);
-        newData[rowIndex][colIndex] = value;
+        newData[rowIndex][colIndex] = newValue;
         setData(newData);
     };
 
@@ -186,7 +188,7 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
     const focusCell = (rowIndex: number, colIndex: number) => {
         // レンダリング完了を待つためにsetTimeoutを使用
         setTimeout(() => {
-            const el = document.getElementById(`cell-${rowIndex}-${colIndex}`) as HTMLInputElement;
+            const el = document.getElementById(`cell-${rowIndex}-${colIndex}`) as HTMLInputElement | HTMLTextAreaElement;
             if (el) {
                 el.focus();
                 // Select text for easier editing
@@ -204,6 +206,12 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
      */
 
     const handleKeyDown = (e: React.KeyboardEvent, rowIndex: number, colIndex: number) => {
+        // Shift + Enter: 改行を許可 (デフォルト動作)
+        if (e.shiftKey && e.key === 'Enter') {
+            e.stopPropagation(); // 他のハンドラに伝播しないようにする (例えば行追加など)
+            return;
+        }
+
         // Shift + Alt + 下矢印: 行の複製
         if (e.shiftKey && e.altKey && e.key === 'ArrowDown') {
             e.preventDefault();
@@ -281,7 +289,7 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                                         <input
                                             id={`cell-0-${colIndex}`}
                                             type="text"
-                                            value={cell}
+                                            value={cell.replace(/<br>/g, '\n')}
                                             onChange={(e) => handleCellChange(0, colIndex, e.target.value)}
                                             onFocus={() => handleFocus(0, colIndex)}
                                             onKeyDown={(e) => handleKeyDown(e, 0, colIndex)}
@@ -312,15 +320,15 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                                     </td>
                                     {row.map((cell, colIndex) => (
                                         <td key={`cell-${rowIndex}-${colIndex}`}>
-                                             <input
+                                             <textarea
                                                 id={`cell-${rowIndex}-${colIndex}`}
-                                                type="text"
-                                                value={cell}
+                                                value={cell.replace(/<br>/g, '\n')}
                                                 onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
                                                 onFocus={() => handleFocus(rowIndex, colIndex)}
                                                 onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
                                                 readOnly={isRowIndexColumn && colIndex === 0}
                                                 style={isRowIndexColumn && colIndex === 0 ? { backgroundColor: 'var(--vscode-editor-inactiveSelectionBackground)', cursor: 'default' } : {}}
+                                                rows={1}
                                             />
                                         </td>
                                     ))}
