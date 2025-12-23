@@ -2,7 +2,7 @@
   "name": "markdown-table-editor",
   "displayName": "Markdown Table Editor",
   "description": "Edit Markdown tables in an Excel-like Webview",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "publisher": "kojimang",
   "repository": {
     "type": "git",
