@@ -19,6 +19,12 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
     // ツールバー操作のためにアクティブなセルを追跡
     const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
 
+    // 列幅の管理 (各列の幅を保持)
+    const [colWidths, setColWidths] = useState<number[]>([]);
+    
+    // リサイズ中の状態
+    const [isResizing, setIsResizing] = useState<{ index: number; startX: number; startWidth: number } | null>(null);
+
     // 1列目を行番号として扱うかどうか
     const [isRowIndexColumn, setIsRowIndexColumn] = useState<boolean>(false);
 
@@ -38,6 +44,56 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         }, 300);
         return () => clearTimeout(timer);
     }, [data]);
+
+    // データ初期化時に列幅の初期値を設定 (初回のみ)
+    useEffect(() => {
+        if (initialData.length > 0 && colWidths.length === 0) {
+            // 文字数ベースで簡易的に計算、または固定値
+            setColWidths(new Array(initialData[0].length).fill(150));
+        } else if (data.length > 0 && data[0].length !== colWidths.length) {
+            // 列数が増減した場合の同期
+            const newWidths = [...colWidths];
+            if (data[0].length > colWidths.length) {
+                // 増えた分をデフォルト幅で追加
+                for (let i = colWidths.length; i < data[0].length; i++) {
+                    newWidths.push(150);
+                }
+            } else {
+                // 減った分を削除
+                newWidths.length = data[0].length;
+            }
+            setColWidths(newWidths);
+        }
+    }, [data[0].length]);
+
+    // リサイズ処理 (Global mouse events)
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            if (!isResizing) return;
+            
+            const diff = e.clientX - isResizing.startX;
+            const newWidth = Math.max(50, isResizing.startWidth + diff); // 最小幅 50px
+            
+            setColWidths(prev => {
+                const next = [...prev];
+                next[isResizing.index] = newWidth;
+                return next;
+            });
+        };
+
+        const handleMouseUp = () => {
+             setIsResizing(null);
+        };
+
+        if (isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isResizing]);
 
     // Handle messages from VS Code
     useEffect(() => {
@@ -145,6 +201,15 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
              newRow.splice(actualIndex, 0, '');
              return newRow;
         });
+        
+        // Update column widths
+        setColWidths(prev => {
+            const newWidths = [...prev];
+            const actualIndex = Math.min(Math.max(insertIndex, 0), newWidths.length);
+            newWidths.splice(actualIndex, 0, 150);
+            return newWidths;
+        });
+
         setData(newData);
     };
 
@@ -251,6 +316,44 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         }
     };
 
+    /**
+     * リサイズ開始
+     */
+    const startResize = (index: number, e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing({
+            index,
+            startX: e.clientX,
+            startWidth: colWidths[index] || 150
+        });
+    };
+
+    /**
+     * 自動調整 (ダブルクリック)
+     */
+    const autoFitColumn = (index: number) => {
+        // Find max content width (approximate)
+        let maxLen = 1; // min chars
+        for (const row of data) {
+             if (row[index]) {
+                 // シンプルに文字数、全角は2文字分換算などのロジックを入れるとベター
+                 // ここでは簡易的に文字数 * 1.5 (マルチバイトなど考慮) ぐらいで計算してみる
+                 let len = 0;
+                 for (let i = 0; i < row[index].length; i++) {
+                     len += row[index].charCodeAt(i) > 255 ? 2 : 1;
+                 }
+                 maxLen = Math.max(maxLen, len);
+             }
+        }
+        // フォントサイズなどによるが、概算: 文字数 * 8px + padding
+        const newWidth = Math.max(50, Math.min(500, maxLen * 10 + 20));
+        setColWidths(prev => {
+            const next = [...prev];
+            next[index] = newWidth;
+            return next;
+        });
+    };
+
     return (
         <div className="table-editor-container">
             <div className="toolbar">
@@ -279,12 +382,18 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                 </label>
             </div>
             <div className="table-wrapper">
-                <table>
+                <table style={{ tableLayout: 'fixed' }}>
+                    <colgroup>
+                         <col style={{ width: '30px' }} />
+                         {colWidths.map((width, i) => (
+                             <col key={`col-${i}`} style={{ width: `${width}px` }} />
+                         ))}
+                    </colgroup>
                     <thead>
                         <tr>
                             <th className="row-action-header"></th>
                             {data[0].map((cell, colIndex) => (
-                                <th key={`header-${colIndex}`}>
+                                <th key={`header-${colIndex}`} style={{ position: 'relative' }}>
                                     <div className="cell-wrapper">
                                         <input
                                             id={`cell-0-${colIndex}`}
@@ -300,6 +409,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                                             onMouseDown={(e) => e.preventDefault()}
                                             tabIndex={-1}
                                         >×</button>
+                                        <div 
+                                            className="resizer"
+                                            onMouseDown={(e) => startResize(colIndex, e)}
+                                            onDoubleClick={() => autoFitColumn(colIndex)}
+                                        />
                                     </div>
                                 </th>
                             ))}
@@ -319,7 +433,7 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                                         >×</button>
                                     </td>
                                     {row.map((cell, colIndex) => (
-                                        <td key={`cell-${rowIndex}-${colIndex}`}>
+                                        <td key={`cell-${rowIndex}-${colIndex}`} style={{ position: 'relative' }}>
                                              <textarea
                                                 id={`cell-${rowIndex}-${colIndex}`}
                                                 value={cell.replace(/<br>/g, '\n')}
@@ -329,6 +443,11 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                                                 readOnly={isRowIndexColumn && colIndex === 0}
                                                 style={isRowIndexColumn && colIndex === 0 ? { backgroundColor: 'var(--vscode-editor-inactiveSelectionBackground)', cursor: 'default' } : {}}
                                                 rows={1}
+                                            />
+                                            <div 
+                                                className="resizer"
+                                                onMouseDown={(e) => startResize(colIndex, e)}
+                                                onDoubleClick={() => autoFitColumn(colIndex)}
                                             />
                                         </td>
                                     ))}

@@ -31,10 +31,11 @@ button:hover {
 table {
     border-collapse: collapse;
     width: 100%;
+    /* table-layout: fixed is set inline in TableEditor.tsx */
 }
 
 th, td {
-    border: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--vscode-editorGroup-border);
     padding: 0;
 }
 
@@ -95,6 +96,21 @@ input:focus, textarea:focus {
 
 .row-action-header {
     width: 30px;
+}
+
+.resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 10;
+}
+
+.resizer:hover {
+    background-color: var(--vscode-focusBorder);
 }
 
 
