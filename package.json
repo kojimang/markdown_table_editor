@@ -39,8 +39,8 @@
   "keybindings": [
     {
       "command": "markdownTableEditor.editTable",
-      "key": "ctrl+k e",
-      "mac": "cmd+k e",
+      "key": "ctrl+k t",
+      "mac": "cmd+k t",
       "when": "editorTextFocus && editorLangId == markdown"
     }
   ],

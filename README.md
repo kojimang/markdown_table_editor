@@ -16,7 +16,7 @@ GitHubの [Releases](https://github.com/kojimang/markdown_table_editor/releases)
 ## 使い方
 
 1. Markdownファイル内の編集したいテーブルにカーソルを置きます。
-2. コマンドパレット (`Ctrl+Shift+P`) から `Markdown Table Editor: Edit Markdown Table` を実行するか、ショートカットキー `Ctrl+K` `E` (Mac: `Cmd+K` `E`) を押します。
+2. コマンドパレット (`Ctrl+Shift+P`) から `Markdown Table Editor: Edit Markdown Table` を実行するか、ショートカットキー `Ctrl+K` `T` (Mac: `Cmd+K` `T`) を押します。
 3. 右側にエディタが開きます。
 
 ## ショートカット・操作 (Webview内)

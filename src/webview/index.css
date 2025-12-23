@@ -49,7 +49,24 @@ input {
     box-sizing: border-box;
 }
 
-input:focus {
+textarea {
+    width: 100%;
+    border: none;
+    padding: 8px;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+    resize: none; /* Disable manual resize */
+    overflow: hidden; /* Hide scrollbars if using auto-expand, or let it scroll if fixed */
+    min-height: 32px; /* Match input height roughly */
+    line-height: 1.4;
+    vertical-align: top;
+    field-sizing: content; /* Modern property to auto-grow, falls back safely */
+}
+
+input:focus, textarea:focus {
     background-color: var(--vscode-input-background);
     outline: 1px solid var(--vscode-focusBorder);
 }
