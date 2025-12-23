@@ -19,6 +19,9 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
     // ツールバー操作のためにアクティブなセルを追跡
     const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null);
 
+    // 1列目を行番号として扱うかどうか
+    const [isRowIndexColumn, setIsRowIndexColumn] = useState<boolean>(false);
+
     // データ変更時にVS Codeへメッセージを送信 (反映)
     // パフォーマンスのためにデバウンス処理を入れることも検討できますが、
     // タイピングの即時反映のために現状は300msの遅延で行っています。
@@ -36,12 +39,62 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         return () => clearTimeout(timer);
     }, [data]);
 
+    // Handle messages from VS Code
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            const message = event.data;
+            switch (message.command) {
+                case 'syncData': 
+                    // Receive data from VS Code (Markdown change)
+                    const newData = message.data;
+                    // Check if data is actually different to avoid loops/unnecessary renders
+                    if (JSON.stringify(newData) !== JSON.stringify(data)) {
+                        setData(newData);
+                    }
+                    break;
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [data]); // Depend on data for comparison
+
+    // 行番号列の設定が変更された場合や、行数が変わった場合に番号を更新
+    useEffect(() => {
+        if (isRowIndexColumn) {
+            updateRowNumbers();
+        }
+    }, [isRowIndexColumn, data.length]);
+
+    const updateRowNumbers = () => {
+        const newData = data.map((row, index) => {
+            // ヘッダー行(index 0)の場合はスキップするか、特別な扱いにしたいが
+            // 現状の実装では data[0] はヘッダーとして扱われているため、
+            // データ行は index 1 から始まる。
+            // しかし data は全データを含むので、index 0 はヘッダー。
+            // ここではデータ行(1以降)の1列目を更新する
+            if (index === 0) return row; // ヘッダーは変更しない（または空にする？）
+            const newRow = [...row];
+            newRow[0] = String(index); // 行番号 (1-based index)
+            return newRow;
+        });
+        
+        // 変更がある場合のみ更新 (無限ループ防止)
+        if (JSON.stringify(newData) !== JSON.stringify(data)) {
+            setData(newData);
+        }
+    };
+
     /**
      * セルの内容が変更されたときに呼び出されます。
      * ステートを更新し、useEffect経由でVS Codeに通知されます。
      */
 
     const handleCellChange = (rowIndex: number, colIndex: number, value: string) => {
+        // 行番号列が有効な場合、1列目は編集不可
+        if (isRowIndexColumn && colIndex === 0 && rowIndex > 0) {
+            return;
+        }
         const newData = data.map((row) => [...row]);
         newData[rowIndex][colIndex] = value;
         setData(newData);
@@ -66,6 +119,14 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
         const newData = [...data];
         // Clamp index
         const actualIndex = Math.min(Math.max(insertIndex, 0), newData.length);
+        
+        // 行番号列が有効な場合、新しい行の1列目に番号をセット
+        if (isRowIndexColumn) {
+            // ここでは空文字を入れておき、useEffectで番号が再計算されるのを待つか、
+            // 即座に計算する。useEffectにお任せするのがシンプル。
+           newRow[0] = ''; 
+        }
+
         newData.splice(actualIndex, 0, newRow);
         setData(newData);
     };
@@ -170,7 +231,9 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
             if (isLastCol) {
                 // 次の行の最初の列へ移動
                 if (rowIndex < data.length - 1) {
-                    focusCell(rowIndex + 1, 0);
+                    // 行番号列が有効な場合、2列目(index 1)へ移動
+                    const nextColIndex = isRowIndexColumn ? 1 : 0;
+                    focusCell(rowIndex + 1, nextColIndex);
                 } else {
                     // 最後の行の最後の列の場合は何もしない (将来的に新しい行を追加するオプションも検討可能)
                 }
@@ -187,15 +250,25 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                     onClick={() => addRow()} 
                     title="Ctrl + Enter"
                     onMouseDown={(e) => e.preventDefault()} // フォーカスが外れるのを防ぐ
+                    style={{ flexShrink: 0 }}
                 >
                     行追加
                 </button>
                 <button 
                     onClick={() => addColumn()}
                     onMouseDown={(e) => e.preventDefault()} // フォーカスが外れるのを防ぐ
+                    style={{ flexShrink: 0 }}
                 >
                     列追加
                 </button>
+                <label style={{ display: 'flex', alignItems: 'center', marginLeft: '10px', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                    <input 
+                        type="checkbox" 
+                        checked={isRowIndexColumn} 
+                        onChange={(e) => setIsRowIndexColumn(e.target.checked)} 
+                    />
+                    1列目を行番号として扱う
+                </label>
             </div>
             <div className="table-wrapper">
                 <table>
@@ -246,6 +319,8 @@ const TableEditor: React.FC<TableEditorProps> = ({ initialData }) => {
                                                 onChange={(e) => handleCellChange(rowIndex, colIndex, e.target.value)}
                                                 onFocus={() => handleFocus(rowIndex, colIndex)}
                                                 onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
+                                                readOnly={isRowIndexColumn && colIndex === 0}
+                                                style={isRowIndexColumn && colIndex === 0 ? { backgroundColor: 'var(--vscode-editor-inactiveSelectionBackground)', cursor: 'default' } : {}}
                                             />
                                         </td>
                                     ))}

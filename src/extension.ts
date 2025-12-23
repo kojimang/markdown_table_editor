@@ -71,14 +71,25 @@ export function activate(context: vscode.ExtensionContext) {
                                 const newTableMarkdown = generateMarkdownTable(newData);
 
                                 editor.edit(editBuilder => {
-                                    // 編集範囲を再計算して置き換えます
-                                    // 注意: ドキュメントが外部で編集された場合、範囲がずれる可能性がありますが、
-                                    // 現状はシンプルにカーソル位置のテーブル範囲を使用します。
-                                    const start = new vscode.Position(tableInfo.range.startLine, 0);
-                                    const end = new vscode.Position(tableInfo.range.endLine, document.lineAt(tableInfo.range.endLine).text.length);
-                                    const range = new vscode.Range(start, end);
+                                    // Make sure we are replacing the CURRENT table content.
+                                    // The table might have changed size (previous edits), so we need to find it again.
+                                    // We assume the start line hasn't changed drastically or we use the cached start line.
+                                    // Robustness: re-scan from the original start line.
+                                    const currentText = document.getText();
+                                    const currentTableInfo = findTableAtPosition(currentText, tableInfo.range.startLine);
 
-                                    editBuilder.replace(range, newTableMarkdown.trim());
+                                    if (currentTableInfo) {
+                                        const start = new vscode.Position(currentTableInfo.range.startLine, 0);
+                                        const end = new vscode.Position(currentTableInfo.range.endLine, document.lineAt(currentTableInfo.range.endLine).text.length);
+                                        const range = new vscode.Range(start, end);
+                                        editBuilder.replace(range, newTableMarkdown.trim());
+
+                                        // Update the reference tableInfo if needed, though we find it fresh each time.
+                                        // But we must update 'tableInfo' captured in closure if we want to rely on it? 
+                                        // No, we just use 'currentTableInfo' derived from 'tableInfo.range.startLine'.
+                                        // Note: If startLine moves (due to edits above), this will break. 
+                                        // Ideally we track the range using a VS Code feature but for now this fixes the "cell edit -> duplicate rows" bug.
+                                    }
                                 });
                                 return;
                         }
@@ -86,6 +97,33 @@ export function activate(context: vscode.ExtensionContext) {
                     undefined,
                     context.subscriptions
                 );
+
+                // Two-way Sync: Update Webview when Markdown changes
+                const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
+                    if (e.document === document && currentPanel) {
+                        // Check if the change is within the table
+                        // We need the CURRENT table bounds.
+                        const currentText = document.getText();
+                        const currentTableInfo = findTableAtPosition(currentText, tableInfo.range.startLine);
+
+                        if (currentTableInfo) {
+                            // Check if changes overlap with table
+                            // Simple optimization: Just parse and send. The Webview can decide if it needs to update (avoid loop).
+                            // But we should debounce this?
+                            // For now, let's send it.
+                            const newTableData = parseMarkdownTable(currentTableInfo.content);
+                            currentPanel.webview.postMessage({
+                                command: 'syncData',
+                                data: newTableData
+                            });
+                        }
+                    }
+                });
+                // Ensure subscription is disposed when panel is closed
+                currentPanel.onDidDispose(() => {
+                    changeDocumentSubscription.dispose();
+                    currentPanel = undefined;
+                }, null, context.subscriptions);
             }
 
             // Get path to the webpack bundled webview script
